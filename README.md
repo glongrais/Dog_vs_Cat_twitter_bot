@@ -1,1 +1,1 @@
-# Dog versus Cat Twitter Bot
+# Dog vs Cat Twitter Bot
