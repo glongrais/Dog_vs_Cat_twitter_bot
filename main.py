@@ -90,6 +90,8 @@ def main():
 
     response = client.create_tweet(poll_options=['Dog', 'Cat'], poll_duration_minutes=300, text='Who is the best?', in_reply_to_tweet_id=image_tweet_id)
 
+    poll_tweet_id = response.data['id']
+
     print(response)
 
 # Run the bot
