@@ -14,8 +14,18 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# Function to post a picture of a cat or dog
-def post_cat_or_dog_picture(isDog):
+# Get the result of the poll and return 1 if the dog wins or 0 if the cat wins.
+def get_poll_result(tweet_id):
+    tweet_url = "https://cdn.syndication.twimg.com/tweet-result?id="+ tweet_id +"&lang=en"
+    # retrieve embed HTML
+    with httpx.Client(http2=False, headers=HEADERS) as client:
+        response = client.get(tweet_url)
+        assert response.status_code == 200
+        data = response.json()
+        print(data['card']['binding_values']['choice2_count'])
+
+# Function to get a picture of a cat or dog and return the image's url
+def get_cat_or_dog_picture(isDog):
     HEADER = {
         'x-api-key':'live_82nyRlMQqVDBMc4VJzyiPlXjviQJPaL9sqtLwE3R6DAHUUBsg3VgDpb6YT7nw4ce'
     }
@@ -33,55 +43,38 @@ def post_cat_or_dog_picture(isDog):
         data = response.json()
     return data['url']
 
-# Function to create a poll for the next day's picture
-def create_poll():
-    poll_question = 'What should be the next day\'s picture?'
-    poll_options = ['Cat', 'Dog']
-    poll = api.create_poll(question=poll_question, options=poll_options, end_datetime=None)
-    return poll.id
+# Download locally the picture from the url, then upload it on Twitter. Return the media_id
+def upload_picture(url):
 
-# Main loop for running the bot
-def main():
-        # authorization of consumer key and consumer secret
+    # Using the Twitter API 1.1 to upload the image as it is not supported yet by the API 2 
+
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    
-    # set access to user's access key and access secret 
     auth.set_access_token(access_token, access_token_secret)
-
-    path = 'images.jpg'
-    get_picture("https://cdn2.thecatapi.com/images/aap.jpg", path)
-    
-    # calling the api 
     api = tweepy.API(auth)
-                # Download the image from the URL
-    image_response = requests.get("https://cdn2.thecatapi.com/images/aap.jpg", stream=True)
+
+    # Download the image from the URL
+    image_response = requests.get(url, stream=True)
     image_path = 'temp_image.jpg'  # Provide a filename to save the image temporarily
     with open(image_path, 'wb') as image_file:
         for chunk in image_response.iter_content(chunk_size=8192):
                 image_file.write(chunk)
 
-        # Upload the image to Twitter
+    # Upload the image to Twitter
     media = api.media_upload(image_path)
+    return media.media_id
+
+# Main loop for running the bot
+def main():
+
     client = tweepy.Client(consumer_key=consumer_key,
                         consumer_secret=consumer_secret,
                         access_token=access_token,
                         access_token_secret=access_token_secret)
 
-    # Replace the text with whatever you want to Tweet about
-    response = client.create_tweet(media_ids=[media.media_id])
-
-    #response = client.get_tweet(1683743570098896896)
+    media_id = upload_picture("")
+    response = client.create_tweet(media_ids=[media_id])
 
     print(response)
-
-    # retrieve embed HTML
-    with httpx.Client(http2=False, headers=HEADERS) as client:
-        response = client.get(
-            "https://cdn.syndication.twimg.com/tweet-result?id=1683800803968942080&lang=en",
-        )
-        assert response.status_code == 200
-        data = response.json()
-        print(data['card']['binding_values']['choice2_count'])
 
 # Run the bot
 if __name__ == "__main__":
