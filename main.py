@@ -1,12 +1,24 @@
+import datetime
 import tweepy
 import os
 import httpx
 import requests
+import pymysql
 
 consumer_key = os.environ.get("CONSUMER_KEY")
 consumer_secret = os.environ.get("CONSUMER_SECRET")
 access_token = os.environ.get("ACCESS_TOKEN")
 access_token_secret = os.environ.get("ACCESS_TOKEN_SECRET")
+
+dog_api_key = os.environ.get("DOG_API_KEY")
+
+db_host = os.environ.get("DB_HOST")
+db_port = os.environ.get("DB_PORT")
+db_user = os.environ.get("DB_USER")
+db_user_pass = os.environ.get("DB_USER_PASS")
+db_name = os.environ.get("DB_NAME")
+
+cert_path = os.environ.get("CERT_PATH")
 
 # Get the result of the poll and return 1 if the dog wins or 0 if the cat wins.
 def get_poll_result(tweet_id):
@@ -27,16 +39,16 @@ def get_poll_result(tweet_id):
         dog_count = int(data['card']['binding_values']['choice1_count']['string_value'])
         cat_count = int(data['card']['binding_values']['choice2_count']['string_value'])
         
-        return dog_count > cat_count
+        return dog_count, cat_count
 
 # Function to get a picture of a cat or dog and return the image's url
-def get_cat_or_dog_picture(isDog):
+def get_cat_or_dog_picture(is_dog):
     HEADERS = {
-        'x-api-key':'live_82nyRlMQqVDBMc4VJzyiPlXjviQJPaL9sqtLwE3R6DAHUUBsg3VgDpb6YT7nw4ce'
+        'x-api-key': dog_api_key
     }
     url = ""
 
-    if isDog:
+    if is_dog:
         url = "https://api.thedogapi.com/v1/images/search"
     else:
         url = "https://api.thecatapi.com/v1/images/search"
@@ -68,19 +80,58 @@ def upload_picture(url):
     media = api.media_upload(image_path)
     return media.media_id
 
+def db_connect():
+    db = pymysql.connect(host=db_host, port=int(db_port), user=db_user, passwd=db_user_pass, db=db_name, ssl={'ssl':{'ca': cert_path}})
+
+    return db
+
+def get_last_poll_id(db):
+    cursor = db.cursor()
+    cursor.execute('SELECT poll_id FROM Polls WHERE id = (SELECT MAX(id) FROM Polls as latest_id)')
+    data = cursor.fetchone()[0]
+
+    return data
+
+def update_poll(db, poll_id, dog_count, cat_count):
+    winner = ""
+
+    if dog_count > cat_count:
+        winner = "Dog"
+    elif cat_count > dog_count:
+        winner = "Cat"
+    else:
+        xinner = "Tie"
+
+    cursor = db.cursor()
+    cursor.execute('UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s  WHERE poll_id = %s', (dog_count, cat_count, winner, poll_id))
+    db.commit()
+    
+def create_poll(db, poll_id):
+    cursor = db.cursor()
+    cursor.execute('''
+    INSERT INTO Polls (date, poll_id, cat_votes, dog_votes, winner)
+    VALUES (%s, %s, 0, 0, '')
+    ''', (datetime.datetime.now(), poll_id))
+    db.commit()
+
 # Main loop for running the bot
 def main():
 
-    tweet_id = '1684183262531399680'
+    db = db_connect()
+    tweet_id = get_last_poll_id(db)
 
     client = tweepy.Client(consumer_key=consumer_key,
                         consumer_secret=consumer_secret,
                         access_token=access_token,
                         access_token_secret=access_token_secret)
     
-    isDog = get_poll_result(tweet_id)
+    dog_count, cat_count = get_poll_result(tweet_id)
 
-    image_url = get_cat_or_dog_picture(isDog)
+    is_dog = dog_count > cat_count
+
+    update_poll(db, tweet_id, dog_count, cat_count)
+
+    image_url = get_cat_or_dog_picture(is_dog)
 
     media_id = upload_picture(image_url)
     
@@ -88,13 +139,20 @@ def main():
 
     image_tweet_id = response.data['id']
 
-    response = client.create_tweet(poll_options=['Dog', 'Cat'], poll_duration_minutes=300, text='Who is the best?', in_reply_to_tweet_id=image_tweet_id)
+    response = client.create_tweet(poll_options=['Dog', 'Cat'], poll_duration_minutes=1380, text='Who is the best?', in_reply_to_tweet_id=image_tweet_id)
 
     poll_tweet_id = response.data['id']
 
     print(response)
 
+    db.close()
+
 # Run the bot
 if __name__ == "__main__":
 
-    main()
+    db = db_connect()
+    data = get_last_poll_id(db)
+    print(data)
+    update_poll(db, data, 10, 12)
+    db.close()
+    print(get_cat_or_dog_picture(True))
