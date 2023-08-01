@@ -109,11 +109,24 @@ def update_poll(db, poll_id, dog_count, cat_count):
 def create_poll(db, poll_id):
     cursor = db.cursor()
     cursor.execute('''
-    INSERT INTO Polls (date, poll_id, cat_votes, dog_votes, winner)
-    VALUES (%s, %s, 0, 0, '')
+    INSERT INTO Polls (date, poll_id, cat_votes, dog_votes, winner) VALUES (%s, %s, 0, 0, '')
     ''', (datetime.datetime.now(), poll_id))
     db.commit()
 
+def get_total_number_polls(db):
+    cursor = db.cursor()
+    cursor.execute("SELECT count(*) FROM Polls")
+    data = cursor.fetchone()[0]
+
+    return data
+
+def get_win_streak(db, winner):
+    cursor = db.cursor()
+    cursor.execute("SET @count=0")
+    cursor.execute("SELECT @count:=IF(a.winner = b.winner, @count + 1, 1) as Streak FROM Polls AS a LEFT JOIN Polls AS b on a.id = b.id + 1 WHERE a.winner = '"+winner+"' ORDER BY a.date DESC")
+    data = cursor.fetchone()[0]
+
+    return data
 # Main loop for running the bot
 def main():
 
@@ -126,22 +139,19 @@ def main():
                         access_token_secret=access_token_secret)
     
     dog_count, cat_count = get_poll_result(tweet_id)
-
     is_dog = dog_count > cat_count
 
     update_poll(db, tweet_id, dog_count, cat_count)
 
     image_url = get_cat_or_dog_picture(is_dog)
-
     media_id = upload_picture(image_url)
     
     response = client.create_tweet(media_ids=[media_id])
 
     image_tweet_id = response.data['id']
-
     response = client.create_tweet(poll_options=['Dog', 'Cat'], poll_duration_minutes=1380, text='Who is the best?', in_reply_to_tweet_id=image_tweet_id)
 
-    poll_tweet_id = response.data['id']
+    create_poll(db, response.data['id'])
 
     print(response)
 
@@ -151,8 +161,5 @@ def main():
 if __name__ == "__main__":
 
     db = db_connect()
-    data = get_last_poll_id(db)
-    print(data)
-    update_poll(db, data, 10, 12)
+    print(get_win_streak(db, "Dog"))
     db.close()
-    print(get_cat_or_dog_picture(True))
