@@ -176,4 +176,5 @@ def main():
 # Run the bot
 if __name__ == "__main__":
 
+    db_connect()
     print("hello")
