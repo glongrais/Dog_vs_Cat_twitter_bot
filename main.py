@@ -176,5 +176,7 @@ def main():
 # Run the bot
 if __name__ == "__main__":
 
-    db_connect()
+    db = db_connect()
+    print(get_total_number_polls(db))
+    db.close()
 
