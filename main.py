@@ -176,8 +176,5 @@ def main():
 # Run the bot
 if __name__ == "__main__":
 
-    client = tweepy.Client(consumer_key=consumer_key,
-                        consumer_secret=consumer_secret,
-                        access_token=access_token,
-                        access_token_secret=access_token_secret)
+    db_connect()
 
