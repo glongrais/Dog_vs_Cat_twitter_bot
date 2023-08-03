@@ -176,5 +176,5 @@ def main():
 # Run the bot
 if __name__ == "__main__":
 
-    print(db_host)
+    print(dog_api_key)
     print(get_cat_or_dog_picture(True))
