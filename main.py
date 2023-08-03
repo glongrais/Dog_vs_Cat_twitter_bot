@@ -177,5 +177,4 @@ def main():
 if __name__ == "__main__":
 
     print(db_host)
-    db_connect()
-    print("hello")
+    print(get_cat_or_dog_picture(True))
