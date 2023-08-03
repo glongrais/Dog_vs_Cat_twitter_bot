@@ -1,6 +1,7 @@
 name: Run Twitter Bot
 
 on:
+    workflow_dispatch:
     schedule:
       - cron: '0 19 * * *'  # Schedule: Every day at 7pm
   
