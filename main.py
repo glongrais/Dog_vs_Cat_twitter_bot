@@ -36,8 +36,12 @@ def get_poll_result(tweet_id):
         assert response.status_code == 200
         data = response.json()
 
-        dog_count = int(data['card']['binding_values']['choice1_count']['string_value'])
-        cat_count = int(data['card']['binding_values']['choice2_count']['string_value'])
+        try:
+            dog_count = int(data['card']['binding_values']['choice1_count']['string_value'])
+            cat_count = int(data['card']['binding_values']['choice2_count']['string_value'])
+        except KeyError as e:
+            dog_count = 0
+            cat_count = 0
         
         return dog_count, cat_count
 
@@ -100,7 +104,7 @@ def update_poll(db, poll_id, dog_count, cat_count):
     elif cat_count > dog_count:
         winner = "Cat"
     else:
-        xinner = "Tie"
+        winner = "Tie"
 
     cursor = db.cursor()
     cursor.execute('UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s  WHERE poll_id = %s', (dog_count, cat_count, winner, poll_id))
@@ -123,7 +127,7 @@ def get_total_number_polls(db):
 def get_win_streak(db, winner):
     cursor = db.cursor()
     cursor.execute("SET @count=0")
-    cursor.execute("SELECT @count:=IF(a.winner = b.winner, @count + 1, 1) as Streak FROM Polls AS a LEFT JOIN Polls AS b on a.id = b.id + 1 WHERE a.winner = '"+winner+"' ORDER BY a.date DESC")
+    cursor.execute("SELECT @count:=IF(a.winner = b.winner, @count + 1, 1) as Streak, a.id FROM Polls AS a LEFT JOIN Polls AS b on a.id = b.id + 1 WHERE a.winner = '"+winner+"' ORDER BY a.date DESC")
     data = cursor.fetchone()[0]
 
     return data
@@ -145,8 +149,20 @@ def main():
 
     image_url = get_cat_or_dog_picture(is_dog)
     media_id = upload_picture(image_url)
+
+    winner = ""
+
+    if is_dog:
+        winner = 'Dog'
+    else:
+        winner = 'Cat'
     
-    response = client.create_tweet(media_ids=[media_id])
+    streak = get_win_streak(db, winner)
+    poll_number = get_total_number_polls(db)
+
+    text = winner + " wins for the " + str(streak) + " days in a row!\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)
+    
+    response = client.create_tweet(media_ids=[media_id], text=text)
 
     image_tweet_id = response.data['id']
     response = client.create_tweet(poll_options=['Dog', 'Cat'], poll_duration_minutes=1380, text='Who is the best?', in_reply_to_tweet_id=image_tweet_id)
@@ -160,6 +176,4 @@ def main():
 # Run the bot
 if __name__ == "__main__":
 
-    db = db_connect()
-    print(get_win_streak(db, "Dog"))
-    db.close()
+    main()
