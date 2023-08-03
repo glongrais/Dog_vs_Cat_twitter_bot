@@ -42,5 +42,6 @@ jobs:
             DB_NAME: ${{ secrets.DB_NAME }}
             CERT_PATH: './cert_tmp.pem'
         run: |
+            echo "${{ secrets.DB_HOST }}"
             echo "${{ secrets.CERTIFICAT_BASE64 }}" | base64 --decode > ./cert_tmp.pem
             python main.py
