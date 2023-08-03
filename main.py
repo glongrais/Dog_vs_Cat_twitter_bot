@@ -176,5 +176,7 @@ def main():
 # Run the bot
 if __name__ == "__main__":
 
-    print(dog_api_key)
-    print(get_cat_or_dog_picture(True))
+    db = db_connect()
+    print(get_total_number_polls(db))
+    db.close()
+
