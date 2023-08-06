@@ -1,2 +1,3 @@
 credentials.txt
 temp_image.jpg
+__pycache__/*
