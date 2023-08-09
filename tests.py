@@ -8,12 +8,6 @@ def httpx_mock():
         yield mock_get
 
 @pytest.fixture
-def tweepy_mock():
-    with patch('tweepy.API.media_upload') as mock_media_upload, \
-         patch('requests.get') as mock_requests_get:
-        yield mock_media_upload, mock_requests_get
-
-@pytest.fixture
 def pymysql_mock():
     with patch('pymysql.connect') as mock_connect:
         yield mock_connect
