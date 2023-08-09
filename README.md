@@ -41,7 +41,7 @@ CERT_PATH=path_to_ssl_certificate
 
 ## Contributions
 
-Contributions are welcome! If you find any issues or want to add features, feel free to open a pull request.
+Contributions are welcome! If you find any issues or want to add features, feel free to open a pull request. Please have a look at the [contributions rules](CONTRIBUTING.md)
 
 ## License
 
