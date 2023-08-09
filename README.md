@@ -4,6 +4,10 @@ Source code for the Twitter bot [@DogvsCat_Fight](https://twitter.com/DogvsCat_F
 
 This repository contains a Python script for a Twitter bot that posts daily pictures of cats and dogs, runs polls, and keeps track of the winning streaks.
 
+## Status
+
+![test status](https://github.com/glongrais/Dog_vs_Cat_twitter_bot/actions/workflows/test.yml/badge.svg)
+
 ## Features
 
 - Fetches poll results from Twitter.
