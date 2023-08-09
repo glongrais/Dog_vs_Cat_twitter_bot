@@ -81,4 +81,4 @@ def test_get_win_streak_no_results(pymysql_mock):
 
     win_streak = get_win_streak(pymysql_mock, 'Cat')
 
-    assert win_streak is 0
+    assert win_streak == 0
