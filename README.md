@@ -45,4 +45,4 @@ Contributions are welcome! If you find any issues or want to add features, feel 
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](https://github.com/glongrais/Dog_vs_Cat_twitter_bot/blob/main/LICENSE).
