@@ -165,7 +165,7 @@ def main():
     streak = get_win_streak(db, winner)
     poll_number = get_total_number_polls(db)
 
-    text = winner + " wins for the " + str(streak) + " days in a row!\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)
+    text = winner + " wins for the " + str(streak) + " days in a row!\n\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)
     
     response = client.create_tweet(media_ids=[media_id], text=text)
 
