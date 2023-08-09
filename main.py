@@ -128,9 +128,14 @@ def get_win_streak(db, winner):
     cursor = db.cursor()
     cursor.execute("SET @count=0")
     cursor.execute("SELECT @count:=IF(a.winner = b.winner, @count + 1, 1) as Streak, a.id FROM Polls AS a LEFT JOIN Polls AS b on a.id = b.id + 1 WHERE a.winner = '"+winner+"' ORDER BY a.date DESC")
-    data = cursor.fetchone()[0]
+    
+    data = cursor.fetchone()
 
-    return data
+    if data is not None:
+        return data[0]
+    else:
+        return 0
+
 # Main loop for running the bot
 def main():
 

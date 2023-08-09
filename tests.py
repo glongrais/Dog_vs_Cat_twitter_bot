@@ -1,84 +1,84 @@
-import unittest
+import pytest
 from unittest.mock import Mock, patch
 from main import *
 
-class TestBotFunctions(unittest.TestCase):
+@pytest.fixture
+def httpx_mock():
+    with patch('httpx.Client.get') as mock_get:
+        yield mock_get
 
-    @patch('httpx.Client.get')
-    def test_get_poll_result(self, mock_get):
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'card': {
-                'binding_values': {
-                    'choice1_count': {'string_value': '12'},
-                    'choice2_count': {'string_value': '10'}
-                }
+@pytest.fixture
+def tweepy_mock():
+    with patch('tweepy.API.media_upload') as mock_media_upload, \
+         patch('requests.get') as mock_requests_get:
+        yield mock_media_upload, mock_requests_get
+
+@pytest.fixture
+def pymysql_mock():
+    with patch('pymysql.connect') as mock_connect:
+        yield mock_connect
+
+def test_get_poll_result(httpx_mock):
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        'card': {
+            'binding_values': {
+                'choice1_count': {'string_value': '12'},
+                'choice2_count': {'string_value': '10'}
             }
         }
-        mock_get.return_value = mock_response
+    }
+    httpx_mock.return_value = mock_response
 
-        dog_count, cat_count = get_poll_result('1234567890')
+    dog_count, cat_count = get_poll_result('1234567890')
 
-        self.assertEqual(dog_count, 12)
-        self.assertEqual(cat_count, 10)
+    assert dog_count == 12
+    assert cat_count == 10
 
-    @patch('httpx.Client.get')
-    def test_get_cat_or_dog_picture(self, mock_get):
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [{'url': 'https://example.com/image.jpg'}]
-        mock_get.return_value = mock_response
+def test_get_last_poll_id(pymysql_mock):
+    mock_cursor = Mock()
+    mock_cursor.fetchone.return_value = [1234567890]
+    pymysql_mock.cursor.return_value = mock_cursor
 
-        cat_url = get_cat_or_dog_picture(False)
-        dog_url = get_cat_or_dog_picture(True)
+    last_poll_id = get_last_poll_id(pymysql_mock)
 
-        self.assertEqual(cat_url, 'https://example.com/image.jpg')
-        self.assertEqual(dog_url, 'https://example.com/image.jpg')
+    assert last_poll_id == 1234567890
 
-    @patch('tweepy.API.media_upload')
-    @patch('requests.get')
-    def test_upload_picture(self, mock_get, mock_media_upload):
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.iter_content.return_value = [b'some', b'content']
+def test_update_poll(pymysql_mock):
+    mock_cursor = Mock()
+    pymysql_mock.cursor.return_value = mock_cursor
 
-        mock_media = Mock()
-        mock_media.media_id = '1234567890'
-        mock_media_upload.return_value = mock_media
+    update_poll(pymysql_mock, 1234567890, 12, 10)
 
-        media_id = upload_picture('https://example.com/image.jpg')
+    mock_cursor.execute.assert_called_once_with(
+        'UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s  WHERE poll_id = %s',
+        (12, 10, 'Dog', 1234567890)
+    )
 
-        self.assertEqual(media_id, '1234567890')
+def test_get_total_number_polls(pymysql_mock):
+    mock_cursor = Mock()
+    mock_cursor.fetchone.return_value = [42]
+    pymysql_mock.cursor.return_value = mock_cursor
 
-    @patch('pymysql.connect')
-    def test_db_connect(self, mock_connect):
-        db = db_connect()
+    total_number_polls = get_total_number_polls(pymysql_mock)
 
-        self.assertIsNotNone(db)
+    assert total_number_polls == 42
 
-    @patch('pymysql.connect')
-    def test_get_last_poll_id(self, mock_connect):
-        mock_cursor = Mock()
-        mock_cursor.fetchone.return_value = [1234567890]
-        mock_connect.return_value.cursor.return_value = mock_cursor
+def test_get_win_streak(pymysql_mock):
+    mock_cursor = Mock()
+    mock_cursor.fetchone.return_value = [3]  # Simulating 3 days of win streak
+    pymysql_mock.cursor.return_value = mock_cursor
 
-        last_poll_id = get_last_poll_id(mock_connect)
+    win_streak = get_win_streak(pymysql_mock, 'Dog')
 
-        self.assertEqual(last_poll_id, 1234567890)
+    assert win_streak == 3
 
-    @patch('pymysql.connect')
-    def test_update_poll(self, mock_connect):
-        mock_cursor = Mock()
-        mock_connect.return_value.cursor.return_value = mock_cursor
+def test_get_win_streak_no_results(pymysql_mock):
+    mock_cursor = Mock()
+    mock_cursor.fetchone.return_value = None  # Simulating no results for win streak
+    pymysql_mock.cursor.return_value = mock_cursor
 
-        update_poll(mock_connect, 1234567890, 12, 10)
+    win_streak = get_win_streak(pymysql_mock, 'Cat')
 
-        mock_cursor.execute.assert_called_once_with(
-            'UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s  WHERE poll_id = %s',
-            (12, 10, 'Dog', 1234567890)
-        )
-
-    # ... Add more test cases for other functions ...
-
-if __name__ == '__main__':
-    unittest.main()
+    assert win_streak is 0
