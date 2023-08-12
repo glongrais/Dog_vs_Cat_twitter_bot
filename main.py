@@ -4,6 +4,12 @@ import os
 import httpx
 import requests
 import pymysql
+from enum import Enum
+
+class Poll_result(Enum):
+    Dog = 1
+    Cat = 2
+    Tie = 3
 
 consumer_key = os.environ.get("CONSUMER_KEY")
 consumer_secret = os.environ.get("CONSUMER_SECRET")
@@ -46,16 +52,17 @@ def get_poll_result(tweet_id):
         return dog_count, cat_count
 
 # Function to get a picture of a cat or dog and return the image's url
-def get_cat_or_dog_picture(is_dog):
+def get_cat_or_dog_picture(poll_result):
     HEADERS = {
         'x-api-key': dog_api_key
     }
     url = ""
 
-    if is_dog:
+    if poll_result == Poll_result.Dog:
         url = "https://api.thedogapi.com/v1/images/search"
     else:
         url = "https://api.thecatapi.com/v1/images/search"
+        
     with httpx.Client(http2=False, headers=HEADERS) as client:
         response = client.get(
             url,
@@ -148,24 +155,23 @@ def main():
                         access_token_secret=access_token_secret)
     
     dog_count, cat_count = get_poll_result(tweet_id)
-    is_dog = dog_count > cat_count
+    
+    if dog_count > cat_count:
+        poll_result = Poll_result.Dog
+    elif cat_count > dog_count:
+        poll_result = Poll_result.Cat
+    else:
+        poll_result = Poll_result.Tie 
 
     update_poll(db, tweet_id, dog_count, cat_count)
 
-    image_url = get_cat_or_dog_picture(is_dog)
+    image_url = get_cat_or_dog_picture(poll_result)
     media_id = upload_picture(image_url)
-
-    winner = ""
-
-    if is_dog:
-        winner = 'Dog'
-    else:
-        winner = 'Cat'
     
-    streak = get_win_streak(db, winner)
+    streak = get_win_streak(db, poll_result.name)
     poll_number = get_total_number_polls(db)
 
-    text = winner + " wins for the " + str(streak) + " days in a row!\n\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)
+    text = poll_result.name + " wins for the " + str(streak) + " days in a row!\n\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)
     
     response = client.create_tweet(media_ids=[media_id], text=text)
 
