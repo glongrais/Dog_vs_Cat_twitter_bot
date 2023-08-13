@@ -103,7 +103,19 @@ def test_get_win_streak_no_results(pymysql_mock):
     assert win_streak == 0
 
 # Test the main function
-def test_main_function(httpx_mock, tweepy_mock, pymysql_mock, requests_mock, db_mock):
+@patch('os.environ.get', side_effect=lambda key: {
+    "DOG_API_KEY": "fake_dog_api_key",
+    "CONSUMER_KEY": 'fake_key',
+    "CONSUMER_SECRET": 'fake_secret',
+    "ACCESS_TOKEN": 'fake_token',
+    "ACCESS_TOKEN_SECRET": 'fake_token_secret',
+    "DB_HOST": 'fake_host',
+    "DB_PORT": 0,
+    "DB_USER": 'fake_user',
+    "DB_USER_PASS": 'fake_pass',
+    "DB_NAME": 'fake_name',
+    "CERT_PATH": '/fake/path'}.get(key, None)) 
+def test_main_function(mock_env_get, httpx_mock, tweepy_mock, requests_mock, db_mock):
     # Mock data and behaviors for httpx
     httpx_mock.return_value.status_code = 200
     # Define a side effect function that returns different values based on the URL
