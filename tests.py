@@ -29,6 +29,14 @@ def requests_mock():
     with patch('requests.get') as mock_request:
         yield mock_request
 
+@pytest.fixture
+def db_mock():
+    with patch('main.db_connect') as mock_connect:
+        mock_db = Mock()
+        mock_db.cursor.return_value = Mock()
+        mock_connect.return_value = mock_db
+        yield mock_connect
+
 def test_get_poll_result(httpx_mock):
     mock_response = Mock()
     mock_response.status_code = 200
@@ -95,7 +103,7 @@ def test_get_win_streak_no_results(pymysql_mock):
     assert win_streak == 0
 
 # Test the main function
-def test_main_function(httpx_mock, tweepy_mock, pymysql_mock, requests_mock):
+def test_main_function(httpx_mock, tweepy_mock, pymysql_mock, requests_mock, db_mock):
     # Mock data and behaviors for httpx
     httpx_mock.return_value.status_code = 200
     # Define a side effect function that returns different values based on the URL
@@ -135,7 +143,7 @@ def test_main_function(httpx_mock, tweepy_mock, pymysql_mock, requests_mock):
     # Mock data and behaviors for pymysql
     mock_cursor = Mock()
     mock_cursor.fetchone.return_value = ["1234567890"]
-    pymysql_mock.return_value.cursor.return_value = mock_cursor
+    db_mock.return_value.cursor.return_value = mock_cursor
 
     # Run the main bot logic
     main()
