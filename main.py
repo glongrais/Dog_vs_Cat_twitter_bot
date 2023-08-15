@@ -4,21 +4,30 @@ import os
 import httpx
 import requests
 import pymysql
+from enum import Enum
 
-consumer_key = os.environ.get("CONSUMER_KEY")
-consumer_secret = os.environ.get("CONSUMER_SECRET")
-access_token = os.environ.get("ACCESS_TOKEN")
-access_token_secret = os.environ.get("ACCESS_TOKEN_SECRET")
+class Poll_result(Enum):
+    Dog = 1
+    Cat = 2
+    Tie = 3
 
-dog_api_key = os.environ.get("DOG_API_KEY")
+def get_credentials():
+    consumer_key = os.environ.get("CONSUMER_KEY")
+    consumer_secret = os.environ.get("CONSUMER_SECRET")
+    access_token = os.environ.get("ACCESS_TOKEN")
+    access_token_secret = os.environ.get("ACCESS_TOKEN_SECRET")
 
-db_host = os.environ.get("DB_HOST")
-db_port = os.environ.get("DB_PORT")
-db_user = os.environ.get("DB_USER")
-db_user_pass = os.environ.get("DB_USER_PASS")
-db_name = os.environ.get("DB_NAME")
+    dog_api_key = os.environ.get("DOG_API_KEY")
 
-cert_path = os.environ.get("CERT_PATH")
+    db_host = os.environ.get("DB_HOST")
+    db_port = os.environ.get("DB_PORT")
+    db_user = os.environ.get("DB_USER")
+    db_user_pass = os.environ.get("DB_USER_PASS")
+    db_name = os.environ.get("DB_NAME")
+
+    cert_path = os.environ.get("CERT_PATH")
+
+    return consumer_key, consumer_secret, access_token, access_token_secret, dog_api_key, db_host, db_port, db_user, db_user_pass, db_name, cert_path
 
 # Get the result of the poll and return 1 if the dog wins or 0 if the cat wins.
 def get_poll_result(tweet_id):
@@ -46,16 +55,20 @@ def get_poll_result(tweet_id):
         return dog_count, cat_count
 
 # Function to get a picture of a cat or dog and return the image's url
-def get_cat_or_dog_picture(is_dog):
+def get_cat_or_dog_picture(dog_api_key, poll_result):
     HEADERS = {
         'x-api-key': dog_api_key
     }
     url = ""
 
-    if is_dog:
+    if poll_result == Poll_result.Tie:
+        return url
+
+    if poll_result == Poll_result.Dog:
         url = "https://api.thedogapi.com/v1/images/search"
     else:
         url = "https://api.thecatapi.com/v1/images/search"
+
     with httpx.Client(http2=False, headers=HEADERS) as client:
         response = client.get(
             url,
@@ -65,26 +78,28 @@ def get_cat_or_dog_picture(is_dog):
     return data[0]['url']
 
 # Download locally the picture from the url, then upload it on Twitter. Return the media_id
-def upload_picture(url):
+def upload_picture(consumer_key, consumer_secret, access_token, access_token_secret, url):
 
     # Using the Twitter API 1.1 to upload the image as it is not supported yet by the API 2 
 
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth = tweepy.OAuth1UserHandler(consumer_key, consumer_secret)
     auth.set_access_token(access_token, access_token_secret)
     api = tweepy.API(auth)
-
-    # Download the image from the URL
-    image_response = requests.get(url, stream=True)
-    image_path = 'temp_image.jpg'  # Provide a filename to save the image temporarily
-    with open(image_path, 'wb') as image_file:
-        for chunk in image_response.iter_content(chunk_size=8192):
-                image_file.write(chunk)
+    if url != "":
+        # Download the image from the URL
+        image_response = requests.get(url, stream=True)
+        image_path = 'temp_image.jpg'  # Provide a filename to save the image temporarily
+        with open(image_path, 'wb') as image_file:
+            for chunk in image_response.iter_content(chunk_size=8192):
+                    image_file.write(chunk)
+    else:
+        image_path = "tie.jpeg"
 
     # Upload the image to Twitter
     media = api.media_upload(image_path)
     return media.media_id
 
-def db_connect():
+def db_connect(db_host, db_port, db_user, db_user_pass, db_name, cert_path):
     db = pymysql.connect(host=db_host, port=int(db_port), user=db_user, passwd=db_user_pass, db=db_name, ssl={'ssl':{'ca': cert_path}})
 
     return db
@@ -139,7 +154,8 @@ def get_win_streak(db, winner):
 # Main loop for running the bot
 def main():
 
-    db = db_connect()
+    consumer_key, consumer_secret, access_token, access_token_secret, dog_api_key, db_host, db_port, db_user, db_user_pass, db_name, cert_path = get_credentials()
+    db = db_connect(db_host, db_port, db_user, db_user_pass, db_name, cert_path)
     tweet_id = get_last_poll_id(db)
 
     client = tweepy.Client(consumer_key=consumer_key,
@@ -148,24 +164,26 @@ def main():
                         access_token_secret=access_token_secret)
     
     dog_count, cat_count = get_poll_result(tweet_id)
-    is_dog = dog_count > cat_count
+    
+    if dog_count > cat_count:
+        poll_result = Poll_result.Dog
+    elif cat_count > dog_count:
+        poll_result = Poll_result.Cat
+    else:
+        poll_result = Poll_result.Tie 
 
     update_poll(db, tweet_id, dog_count, cat_count)
 
-    image_url = get_cat_or_dog_picture(is_dog)
-    media_id = upload_picture(image_url)
-
-    winner = ""
-
-    if is_dog:
-        winner = 'Dog'
-    else:
-        winner = 'Cat'
+    image_url = get_cat_or_dog_picture(dog_api_key, poll_result)
+    media_id = upload_picture(consumer_key, consumer_secret, access_token, access_token_secret, image_url)
     
-    streak = get_win_streak(db, winner)
+    streak = get_win_streak(db, poll_result.name)
     poll_number = get_total_number_polls(db)
 
-    text = winner + " wins for the " + str(streak) + " days in a row!\n\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)
+    if poll_result == Poll_result.Tie:
+        text = "It's a tie! No one won today ...\n\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)+"\n\n#dog #cat #fight"
+    else:
+        text = poll_result.name + " wins for the " + str(streak) + " days in a row!\n\nVote for tomorrow's winner in the first reply ↓ ! #"+ str(poll_number)+"\n\n#dog #cat #fight"
     
     response = client.create_tweet(media_ids=[media_id], text=text)
 
