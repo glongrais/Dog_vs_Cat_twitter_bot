@@ -61,6 +61,9 @@ def get_cat_or_dog_picture(dog_api_key, poll_result):
     }
     url = ""
 
+    if poll_result == Poll_result.Tie:
+        return url
+
     if poll_result == Poll_result.Dog:
         url = "https://api.thedogapi.com/v1/images/search"
     else:
@@ -82,13 +85,15 @@ def upload_picture(consumer_key, consumer_secret, access_token, access_token_sec
     auth = tweepy.OAuth1UserHandler(consumer_key, consumer_secret)
     auth.set_access_token(access_token, access_token_secret)
     api = tweepy.API(auth)
-
-    # Download the image from the URL
-    image_response = requests.get(url, stream=True)
-    image_path = 'temp_image.jpg'  # Provide a filename to save the image temporarily
-    with open(image_path, 'wb') as image_file:
-        for chunk in image_response.iter_content(chunk_size=8192):
-                image_file.write(chunk)
+    if url != "":
+        # Download the image from the URL
+        image_response = requests.get(url, stream=True)
+        image_path = 'temp_image.jpg'  # Provide a filename to save the image temporarily
+        with open(image_path, 'wb') as image_file:
+            for chunk in image_response.iter_content(chunk_size=8192):
+                    image_file.write(chunk)
+    else:
+        image_path = "tie.jpeg"
 
     # Upload the image to Twitter
     media = api.media_upload(image_path)
