@@ -38,7 +38,7 @@ def get_poll_result(tweet_id):
     "Accept-Language": "en-US,en;q=0.9",
     }
 
-    tweet_url = "https://cdn.syndication.twimg.com/tweet-result?id="+ tweet_id +"&lang=en"
+    tweet_url = "https://cdn.syndication.twimg.com/tweet-result?id="+ tweet_id +"&lang=en&token=43o65d9fmio&lxvfuk=1akqhnn8ol4bf&m9qcvb=1su9o8cqfz9i&owvzoi=3ifhy8bwxy24&0am1nx=1sq878bh56qz&x8k65v=ld8ouhz6i76&raa2x0=gb8h79gke6nc&qtdsuj=1w58l0oopvpn&217cxh=57zl8ngu1mnj&k0bcu0=vbk8io7e8t3"
     # retrieve embed HTML
     with httpx.Client(http2=False, headers=HEADERS) as client:
         response = client.get(tweet_url)
@@ -199,5 +199,5 @@ def main():
 # Run the bot
 if __name__ == "__main__":
 
-    main()
+    print(get_poll_result('1692189725128319416'))
 
