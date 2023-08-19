@@ -163,7 +163,7 @@ def test_main_function(mock_env_get, mock_httpx_client_get, mock_tweepy_client, 
     # Define a side effect function that returns different values based on the URL
     def httpx_side_effect(*args, **kwargs):
         mock_response = Mock()
-        if args[0] == 'https://cdn.syndication.twimg.com/tweet-result?id=1234567890&lang=en':
+        if 'https://cdn.syndication.twimg.com/tweet-result?id=1234567890&lang=en' in args[0]:
             mock_response.json.return_value =  {
                 'card': {
                     'binding_values': {
