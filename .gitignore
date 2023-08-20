@@ -2,3 +2,4 @@ credentials.txt
 temp_image.jpg
 __pycache__/*
 credentials.sh
+logs/*
