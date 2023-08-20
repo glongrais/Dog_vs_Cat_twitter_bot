@@ -5,29 +5,43 @@ import httpx
 import requests
 import pymysql
 from enum import Enum
+import logging
 
 class Poll_result(Enum):
     Dog = 1
     Cat = 2
     Tie = 3
 
+def logging_setup():
+    # Create a "logs" directory if it doesn't exist
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
+
+    # Get today's date
+    today_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    # Configure the logging
+    log_file_path = os.path.join("logs", f"bot_{today_date}.log")
+    logging.basicConfig(filename=log_file_path, level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+
 def get_credentials():
-    consumer_key = os.environ.get("CONSUMER_KEY")
-    consumer_secret = os.environ.get("CONSUMER_SECRET")
-    access_token = os.environ.get("ACCESS_TOKEN")
-    access_token_secret = os.environ.get("ACCESS_TOKEN_SECRET")
+    credential_names = [
+        "CONSUMER_KEY", "CONSUMER_SECRET", "ACCESS_TOKEN", "ACCESS_TOKEN_SECRET",
+        "DOG_API_KEY", "DB_HOST", "DB_PORT", "DB_USER", "DB_USER_PASS",
+        "DB_NAME", "CERT_PATH"
+    ]
 
-    dog_api_key = os.environ.get("DOG_API_KEY")
+    credentials = {}
 
-    db_host = os.environ.get("DB_HOST")
-    db_port = os.environ.get("DB_PORT")
-    db_user = os.environ.get("DB_USER")
-    db_user_pass = os.environ.get("DB_USER_PASS")
-    db_name = os.environ.get("DB_NAME")
+    for name in credential_names:
+        value = os.environ.get(name)
+        if value is None:
+            logging.error(f"Environment variable {name} is missing or not set.")
+            exit(1)
+        else:
+            credentials[name.lower()] = value
 
-    cert_path = os.environ.get("CERT_PATH")
-
-    return consumer_key, consumer_secret, access_token, access_token_secret, dog_api_key, db_host, db_port, db_user, db_user_pass, db_name, cert_path
+    return credentials
 
 # Get the result of the poll and return 1 if the dog wins or 0 if the cat wins.
 def get_poll_result(tweet_id):
@@ -42,13 +56,18 @@ def get_poll_result(tweet_id):
     # retrieve embed HTML
     with httpx.Client(http2=False, headers=HEADERS) as client:
         response = client.get(tweet_url)
-        assert response.status_code == 200
+        try:
+            assert response.status_code == 200
+        except AssertionError as e:
+            logging.error("get_poll_result() AssertionError: %s", response.status_code)
+            exit(1)
         data = response.json()
 
         try:
             dog_count = int(data['card']['binding_values']['choice1_count']['string_value'])
             cat_count = int(data['card']['binding_values']['choice2_count']['string_value'])
         except KeyError as e:
+            logging.exception("get_poll_result() KeyError: %s", e)
             dog_count = 0
             cat_count = 0
         
@@ -73,7 +92,11 @@ def get_cat_or_dog_picture(dog_api_key, poll_result):
         response = client.get(
             url,
         )
-        assert response.status_code == 200
+        try:
+            assert response.status_code == 200
+        except AssertionError as e:
+            logging.error("get_cat_or_dog_picture() AssertionError: %s", response.status_code)
+            exit()
         data = response.json()
     return data[0]['url']
 
@@ -154,14 +177,16 @@ def get_win_streak(db, winner):
 # Main loop for running the bot
 def main():
 
-    consumer_key, consumer_secret, access_token, access_token_secret, dog_api_key, db_host, db_port, db_user, db_user_pass, db_name, cert_path = get_credentials()
-    db = db_connect(db_host, db_port, db_user, db_user_pass, db_name, cert_path)
+    logging_setup()
+
+    credentials = get_credentials()
+    db = db_connect(credentials['db_host'], credentials['db_port'], credentials['db_user'], credentials['db_user_pass'], credentials['db_name'], credentials['cert_path'])
     tweet_id = get_last_poll_id(db)
 
-    client = tweepy.Client(consumer_key=consumer_key,
-                        consumer_secret=consumer_secret,
-                        access_token=access_token,
-                        access_token_secret=access_token_secret)
+    client = tweepy.Client(consumer_key=credentials['consumer_key'],
+                        consumer_secret=credentials['consumer_secret'],
+                        access_token=credentials['access_token'],
+                        access_token_secret=credentials['access_token_secret'])
     
     dog_count, cat_count = get_poll_result(tweet_id)
     
@@ -174,8 +199,8 @@ def main():
 
     update_poll(db, tweet_id, dog_count, cat_count)
 
-    image_url = get_cat_or_dog_picture(dog_api_key, poll_result)
-    media_id = upload_picture(consumer_key, consumer_secret, access_token, access_token_secret, image_url)
+    image_url = get_cat_or_dog_picture(credentials['dog_api_key'], poll_result)
+    media_id = upload_picture(credentials['consumer_key'], credentials['consumer_secret'], credentials['access_token'], credentials['access_token_secret'], image_url)
     
     streak = get_win_streak(db, poll_result.name)
     poll_number = get_total_number_polls(db)
@@ -198,6 +223,6 @@ def main():
 
 # Run the bot
 if __name__ == "__main__":
-
-    main()
+    logging_setup()
+    print(get_poll_result('169255556202038903'))
 
