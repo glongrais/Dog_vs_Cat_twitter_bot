@@ -45,33 +45,33 @@ def get_credentials():
 
 # Get the result of the poll and return 1 if the dog wins or 0 if the cat wins.
 def get_poll_result(tweet_id):
-
     HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.54 Safari/537.36",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Accept-Language": "en-US,en;q=0.9",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.54 Safari/537.36",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
-    tweet_url = "https://cdn.syndication.twimg.com/tweet-result?id="+ tweet_id +"&lang=en&token=43o65d9fmio&lxvfuk=1akqhnn8ol4bf&m9qcvb=1su9o8cqfz9i&owvzoi=3ifhy8bwxy24&0am1nx=1sq878bh56qz&x8k65v=ld8ouhz6i76&raa2x0=gb8h79gke6nc&qtdsuj=1w58l0oopvpn&217cxh=57zl8ngu1mnj&k0bcu0=vbk8io7e8t3"
-    # retrieve embed HTML
-    with httpx.Client(http2=False, headers=HEADERS) as client:
-        response = client.get(tweet_url)
-        try:
-            assert response.status_code == 200
-        except AssertionError as e:
-            logging.error("get_poll_result() AssertionError: %s", response.status_code)
-            exit(1)
-        data = response.json()
+    tweet_url = "https://cdn.syndication.twimg.com/tweet-result?id=" + tweet_id + "&lang=en&token=43o65d9fmio&lxvfuk=1akqhnn8ol4bf&m9qcvb=1su9o8cqfz9i&owvzoi=3ifhy8bwxy24&0am1nx=1sq878bh56qz&x8k65v=ld8ouhz6i76&raa2x0=gb8h79gke6nc&qtdsuj=1w58l0oopvpn&217cxh=57zl8ngu1mnj&k0bcu0=vbk8io7e8t3"
+    
+    try:
+        with httpx.Client(http2=False, headers=HEADERS) as client:
+            response = client.get(tweet_url)
+            response.raise_for_status()  # Raises an exception if status code is not 200
+            data = response.json()
 
-        try:
             dog_count = int(data['card']['binding_values']['choice1_count']['string_value'])
             cat_count = int(data['card']['binding_values']['choice2_count']['string_value'])
-        except KeyError as e:
-            logging.exception("get_poll_result() KeyError: %s", e)
-            dog_count = 0
-            cat_count = 0
-        
-        return dog_count, cat_count
+            
+            return dog_count, cat_count
+
+    except httpx.HTTPError as http_error:
+        logging.error("get_poll_result() HTTP error: %s", http_error)
+        exit(1)
+
+    except (KeyError, ValueError) as e:
+        logging.error("get_poll_result() Error: %s", e)
+        exit(1)
+
 
 # Function to get a picture of a cat or dog and return the image's url
 def get_cat_or_dog_picture(dog_api_key, poll_result):
@@ -96,7 +96,7 @@ def get_cat_or_dog_picture(dog_api_key, poll_result):
             assert response.status_code == 200
         except AssertionError as e:
             logging.error("get_cat_or_dog_picture() AssertionError: %s", response.status_code)
-            exit()
+            exit(1)
         data = response.json()
     return data[0]['url']
 
@@ -224,5 +224,5 @@ def main():
 # Run the bot
 if __name__ == "__main__":
     logging_setup()
-    print(get_poll_result('169255556202038903'))
+    print(get_poll_result('1692189725128319416'))
 
