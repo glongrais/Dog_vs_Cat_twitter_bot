@@ -150,10 +150,7 @@ def test_create_poll(mock_pymysql_connect):
 
     assert mock_cursor.execute.called
 
-    expected_call = call('''
-    INSERT INTO Polls (date, poll_id, cat_votes, dog_votes, winner) VALUES (%s, %s, 0, 0, '')
-    ''', (ANY, '1234567890')
-    )
+    expected_call = call('''INSERT INTO Polls (date, poll_id, cat_votes, dog_votes, winner) VALUES (%s, %s, 0, 0, '')''', (ANY, '1234567890'))
     
     mock_cursor.execute.assert_has_calls([expected_call])
 
