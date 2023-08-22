@@ -62,16 +62,29 @@ def test_get_last_poll_id(mock_pymysql_connect):
 
     assert last_poll_id == 1234567890
 
-def test_update_poll(mock_pymysql_connect):
+def test_update_poll_Dog_Win(mock_pymysql_connect):
     mock_cursor = Mock()
     mock_pymysql_connect.cursor.return_value = mock_cursor
 
     update_poll(mock_pymysql_connect, 1234567890, 12, 10)
 
-    mock_cursor.execute.assert_called_once_with(
-        'UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s  WHERE poll_id = %s',
-        (12, 10, 'Dog', 1234567890)
-    )
+    mock_cursor.execute.assert_called_once_with("UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s WHERE poll_id = %s", (12, 10, 'Dog', 1234567890))
+
+def test_update_poll_Cat_Win(mock_pymysql_connect):
+    mock_cursor = Mock()
+    mock_pymysql_connect.cursor.return_value = mock_cursor
+
+    update_poll(mock_pymysql_connect, 1234567890, 12, 15)
+
+    mock_cursor.execute.assert_called_once_with("UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s WHERE poll_id = %s", (12, 15, 'Cat', 1234567890))
+
+def test_update_poll_Tie(mock_pymysql_connect):
+    mock_cursor = Mock()
+    mock_pymysql_connect.cursor.return_value = mock_cursor
+
+    update_poll(mock_pymysql_connect, 1234567890, 15, 15)
+
+    mock_cursor.execute.assert_called_once_with("UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s WHERE poll_id = %s", (15, 15, 'Tie', 1234567890))
 
 def test_get_total_number_polls(mock_pymysql_connect):
     mock_cursor = Mock()
