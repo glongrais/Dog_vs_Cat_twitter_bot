@@ -247,6 +247,6 @@ def main():
 
 # Run the bot
 if __name__ == "__main__":
-    logging_setup()
-    print(get_poll_result('1692189725128319416'))
+    
+    main()
 
