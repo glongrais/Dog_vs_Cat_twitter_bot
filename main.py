@@ -102,77 +102,101 @@ def get_cat_or_dog_picture(dog_api_key, poll_result):
 
 # Download locally the picture from the url, then upload it on Twitter. Return the media_id
 def upload_picture(consumer_key, consumer_secret, access_token, access_token_secret, url):
-
-    # Using the Twitter API 1.1 to upload the image as it is not supported yet by the API 2 
-
-    auth = tweepy.OAuth1UserHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
-    api = tweepy.API(auth)
-    if url != "":
-        # Download the image from the URL
-        image_response = requests.get(url, stream=True)
-        image_path = 'temp_image.jpg'  # Provide a filename to save the image temporarily
-        with open(image_path, 'wb') as image_file:
-            for chunk in image_response.iter_content(chunk_size=8192):
+    try:
+        auth = tweepy.OAuth1UserHandler(consumer_key, consumer_secret)
+        auth.set_access_token(access_token, access_token_secret)
+        api = tweepy.API(auth)
+        
+        if url != "":
+            # Download the image from the URL
+            image_response = requests.get(url, stream=True)
+            image_path = 'temp_image.jpg'  # Provide a filename to save the image temporarily
+            with open(image_path, 'wb') as image_file:
+                for chunk in image_response.iter_content(chunk_size=8192):
                     image_file.write(chunk)
-    else:
-        image_path = "tie.jpeg"
+        else:
+            image_path = "tie.jpeg"
 
-    # Upload the image to Twitter
-    media = api.media_upload(image_path)
-    return media.media_id
+        # Upload the image to Twitter
+        media = api.media_upload(image_path)
+        return media.media_id
+
+    except Exception as e:
+        logging.error("upload_picture() Error: %s", e)
+        exit(1)
 
 def db_connect(db_host, db_port, db_user, db_user_pass, db_name, cert_path):
-    db = pymysql.connect(host=db_host, port=int(db_port), user=db_user, passwd=db_user_pass, db=db_name, ssl={'ssl':{'ca': cert_path}})
-
-    return db
+    try:
+        db = pymysql.connect(
+            host=db_host,
+            port=int(db_port),
+            user=db_user,
+            passwd=db_user_pass,
+            db=db_name,
+            ssl={'ssl': {'ca': cert_path}}
+        )
+        return db
+    except Exception as e:
+        logging.error("db_connect() Error: %s", e)
+        exit(1)
 
 def get_last_poll_id(db):
-    cursor = db.cursor()
-    cursor.execute('SELECT poll_id FROM Polls WHERE id = (SELECT MAX(id) FROM Polls as latest_id)')
-    data = cursor.fetchone()[0]
-
-    return data
+    try:
+        cursor = db.cursor()
+        cursor.execute('SELECT poll_id FROM Polls WHERE id = (SELECT MAX(id) FROM Polls as latest_id)')
+        data = cursor.fetchone()[0]
+        return data
+    except Exception as e:
+        logging.error("get_last_poll_id() Error: %s", e)
+        exit(1)
 
 def update_poll(db, poll_id, dog_count, cat_count):
-    winner = ""
+    try:
+        winner = "Dog" if dog_count > cat_count else ("Cat" if cat_count > dog_count else "Tie")
 
-    if dog_count > cat_count:
-        winner = "Dog"
-    elif cat_count > dog_count:
-        winner = "Cat"
-    else:
-        winner = "Tie"
-
-    cursor = db.cursor()
-    cursor.execute('UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s  WHERE poll_id = %s', (dog_count, cat_count, winner, poll_id))
-    db.commit()
+        cursor = db.cursor()
+        cursor.execute('UPDATE Polls SET dog_votes = %s, cat_votes = %s, winner = %s WHERE poll_id = %s', (dog_count, cat_count, winner, poll_id))
+        db.commit()
+    except Exception as e:
+        logging.error("update_poll() Error: %s", e)
     
 def create_poll(db, poll_id):
-    cursor = db.cursor()
-    cursor.execute('''
-    INSERT INTO Polls (date, poll_id, cat_votes, dog_votes, winner) VALUES (%s, %s, 0, 0, '')
-    ''', (datetime.datetime.now(), poll_id))
-    db.commit()
+    try:
+        cursor = db.cursor()
+        cursor.execute('''INSERT INTO Polls (date, poll_id, cat_votes, dog_votes, winner) VALUES (%s, %s, 0, 0, '')''', (datetime.datetime.now(), poll_id))
+        db.commit()
+    except Exception as e:
+        logging.error("create_poll() Error: %s", e)
+        exit(1)
 
 def get_total_number_polls(db):
-    cursor = db.cursor()
-    cursor.execute("SELECT count(*) FROM Polls")
-    data = cursor.fetchone()[0]
-
-    return data
+    try:
+        cursor = db.cursor()
+        cursor.execute("SELECT count(*) FROM Polls")
+        data = cursor.fetchone()[0]
+        return data
+    except Exception as e:
+        logging.error("get_total_number_polls() Error: %s", e)
+        exit(1)
 
 def get_win_streak(db, winner):
-    cursor = db.cursor()
-    cursor.execute("SET @count=0")
-    cursor.execute("SELECT @count:=IF(a.winner = b.winner, @count + 1, 1) as Streak, a.id FROM Polls AS a LEFT JOIN Polls AS b on a.id = b.id + 1 WHERE a.winner = '"+winner+"' ORDER BY a.date DESC")
-    
-    data = cursor.fetchone()
+    try:
+        cursor = db.cursor()
+        cursor.execute("SET @count=0")
+        cursor.execute(
+            "SELECT @count:=IF(a.winner = b.winner, @count + 1, 1) as Streak, a.id FROM Polls AS a "
+            "LEFT JOIN Polls AS b on a.id = b.id + 1 WHERE a.winner = %s ORDER BY a.date DESC",
+            (winner,)
+        )
+        data = cursor.fetchone()
 
-    if data is not None:
-        return data[0]
-    else:
-        return 0
+        if data is not None:
+            return data[0]
+        else:
+            return 0
+    except Exception as e:
+        logging.error("get_win_streak() Error: %s", e)
+        exit(1)
 
 # Main loop for running the bot
 def main():
