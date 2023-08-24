@@ -35,7 +35,7 @@ def get_credentials():
 
     for name in credential_names:
         value = os.environ.get(name)
-        if value is None:
+        if value is None and name != "CERT_PATH":
             logging.error(f"Environment variable {name} is missing or not set.")
             exit(1)
         else:
