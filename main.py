@@ -115,7 +115,7 @@ def upload_picture(consumer_key, consumer_secret, access_token, access_token_sec
                 for chunk in image_response.iter_content(chunk_size=8192):
                     image_file.write(chunk)
         else:
-            image_path = "tie.jpeg"
+            image_path = "tie.png"
 
         # Upload the image to Twitter
         media = api.media_upload(image_path)
